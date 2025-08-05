@@ -62,7 +62,7 @@ st.markdown(
     }
     h1 {
         font-weight: 700;
-        color: #0b3d91;
+        color: #619eff;
         text-align: center;
         margin-bottom: 0.5rem;
     }
