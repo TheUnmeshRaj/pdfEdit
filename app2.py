@@ -1,80 +1,38 @@
 import os
 import shutil
 from zipfile import ZipFile
+
 import fitz  # PyMuPDF
 import streamlit as st
 from PIL import Image
-import io
 
-# --- Functions ---
-def add_watermark(input_path, output_path, watermark_path, scale=0.5, position=(0.5, 0.5), opacity=0.5):
-    """Add watermark to PDF with adjustable size, position and opacity"""
+
+def apply_watermark_to_pdf(input_path, watermark_img_path, scale, position, output_folder):
     doc = fitz.open(input_path)
-    
-    # Convert watermark to RGBA if needed
-    watermark_img = Image.open(watermark_path)
-    if watermark_img.mode != 'RGBA':
-        watermark_img = watermark_img.convert('RGBA')
-    
-    # Create a temporary watermark file
-    temp_watermark = "temp_watermark.png"
-    watermark_img.save(temp_watermark)
-    
+    wm_img = Image.open(watermark_img_path).convert("RGBA")
+    new_width = int(wm_img.width * scale)
+    new_height = int(wm_img.height * scale)
+    wm_img_resized = wm_img.resize((new_width, new_height), Image.LANCZOS)
+    temp_wm_path = os.path.join(output_folder, "temp_watermark.png")
+    wm_img_resized.save(temp_wm_path, "PNG")
     for page in doc:
-        # Get page dimensions
-        page_width = page.rect.width
-        page_height = page.rect.height
-        
-        # Calculate watermark dimensions based on scale
-        wm_width = watermark_img.width * scale
-        wm_height = watermark_img.height * scale
-        
-        # Calculate position (convert from ratio to coordinates)
-        x = position[0] * (page_width - wm_width)
-        y = position[1] * (page_height - wm_height)
-        
-        # Create a rectangle for the watermark
-        rect = fitz.Rect(x, y, x + wm_width, y + wm_height)
-        
-        # Add watermark to the page
-        page.insert_image(rect, filename=temp_watermark, opacity=opacity)
-    
-    # Save the watermarked PDF
-    doc.save(output_path, garbage=4, deflate=True, clean=True)
+        img_rect = fitz.Rect(position[0], position[1], position[0]+new_width, position[1]+new_height)
+        page.insert_image(img_rect, filename=temp_wm_path, overlay=True)
+    watermarked_pdf_path = os.path.join(output_folder, "watermarked.pdf")
+    doc.save(watermarked_pdf_path, garbage=4, deflate=True, clean=True)
     doc.close()
-    
-    # Remove temporary watermark file
-    if os.path.exists(temp_watermark):
-        os.remove(temp_watermark)
+    os.remove(temp_wm_path)
+    return watermarked_pdf_path
 
-def compress_and_split_pdf(input_path, output_folder, watermark_path=None, scale=0.5, position=(0.5, 0.5), opacity=0.5):
-    """Compress and split PDF with optional watermark"""
+def compress_and_split_pdf(input_path, output_folder):
     doc = fitz.open(input_path)
     os.makedirs(output_folder, exist_ok=True)
-    
     for i, page in enumerate(doc):
         new_doc = fitz.open()
         new_doc.insert_pdf(doc, from_page=i, to_page=i)
-        new_doc.set_metadata({})
-        
-        if watermark_path:
-            # Create temporary single-page PDF to watermark
-            temp_input = os.path.join(output_folder, f"temp_{i}.pdf")
-            temp_output = os.path.join(output_folder, f"temp_wm_{i}.pdf")
-            new_doc.save(temp_input)
-            
-            # Apply watermark
-            add_watermark(temp_input, temp_output, watermark_path, scale, position, opacity)
-            
-            # Clean up temp files
-            os.remove(temp_input)
-            new_doc = fitz.open(temp_output)
-            os.remove(temp_output)
-        
         out_path = os.path.join(output_folder, f"{i+1}.pdf")
         new_doc.save(out_path, garbage=4, deflate=True, clean=True)
         new_doc.close()
-    
     doc.close()
 
 def zip_folder(folder_path, zip_path):
@@ -84,52 +42,12 @@ def zip_folder(folder_path, zip_path):
                 file_path = os.path.join(root, file)
                 zipf.write(file_path, arcname=file)
 
-def show_preview(pdf_path, watermark_path, scale, position, opacity):
-    """Show a preview of the first page with watermark"""
-    doc = fitz.open(pdf_path)
-    page = doc[0]
-    
-    # Convert page to image
-    pix = page.get_pixmap()
-    img_bytes = pix.tobytes("png")
-    img = Image.open(io.BytesIO(img_bytes))
-    
-    # Prepare watermark
-    watermark_img = Image.open(watermark_path)
-    if watermark_img.mode != 'RGBA':
-        watermark_img = watermark_img.convert('RGBA')
-    
-    # Resize watermark
-    wm_width = int(watermark_img.width * scale)
-    wm_height = int(watermark_img.height * scale)
-    watermark_img = watermark_img.resize((wm_width, wm_height), Image.LANCZOS)
-    
-    # Calculate position
-    x = int(position[0] * (img.width - wm_width))
-    y = int(position[1] * (img.height - wm_height))
-    
-    # Create transparent layer for watermark
-    watermark_layer = Image.new('RGBA', img.size, (0, 0, 0, 0))
-    watermark_layer.paste(watermark_img, (x, y))
-    
-    # Adjust opacity
-    if opacity < 1.0:
-        alpha = watermark_layer.split()[3]
-        alpha = alpha.point(lambda p: p * opacity)
-        watermark_layer.putalpha(alpha)
-    
-    # Combine images
-    combined = Image.alpha_composite(img.convert('RGBA'), watermark_layer)
-    
-    # Display preview
-    st.image(combined, caption="Watermark Preview (First Page)", use_column_width=True)
-    doc.close()
+# =============== Streamlit UI & Logic ===============
 
-# --- UI Setup ---
+
 st.set_page_config(
-    page_title="PDF Watermark Tool",
+    page_title="PDF Compressor & Splitter with Watermark",
     page_icon="📄",
-    layout="centered",
     initial_sidebar_state="collapsed",
 )
 
@@ -147,7 +65,7 @@ st.markdown(
 
     /* Container */
     .main > div {
-        max-width: 700px !important;
+        max-width: 1200px !important;
         margin: 0 auto;
         padding: 2rem 1rem;
         background: white;
@@ -200,6 +118,15 @@ st.markdown(
         text-align: center;
     }
 
+    /* Preview container */
+    .preview-container {
+        border: 2px dashed #0b3d91;
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+        margin: 1rem 0;
+    }
+
     /* Footer */
     footer {
         text-align: center;
@@ -208,148 +135,124 @@ st.markdown(
         margin-top: 3rem;
     }
 
-    /* Slider labels */
-    .stSlider label {
-        font-weight: 500 !important;
+    /* Step headers */
+    .step-header {
+        background: linear-gradient(90deg, #0b3d91, #074080);
+        color: white;
+        padding: 0.8rem 1.5rem;
+        border-radius: 8px;
+        margin: 1.5rem 0 1rem 0;
+        font-weight: 600;
     }
 
-    /* Watermark settings section */
-    .watermark-settings {
-        background: #f0f4f8;
-        padding: 1.5rem;
-        border-radius: 8px;
-        margin: 1.5rem 0;
-    }
     </style>
     """,
     unsafe_allow_html=True,
 )
 
 st.markdown("📄", unsafe_allow_html=True)
-st.title("PDF Watermark Tool")
+st.title("PDF Compressor & Splitter with Watermark")
 st.markdown(
-    '<p class="subtitle">Upload a PDF and add a watermark before compressing and splitting into individual pages.</p>',
+    '<p class="subtitle">Upload a PDF and optionally add a watermark. Compress and split pages into individual files with a convenient ZIP download.</p>',
     unsafe_allow_html=True,
 )
 
-# --- Main App ---
-uploaded_file = st.file_uploader("Choose a PDF file", type="pdf", help="Upload your PDF file here.")
+# Step 1: Upload PDF
+st.markdown('<div class="step-header">📤 Step 1: Upload PDF File</div>', unsafe_allow_html=True)
 
-if uploaded_file:
-    # Create working directory
-    working_dir = "split_output"
-    split_folder = os.path.join(working_dir, "pages")
-    zip_output = os.path.join(working_dir, "numbered_pages.zip")
-    
-    if os.path.exists(working_dir):
-        shutil.rmtree(working_dir)
-    os.makedirs(split_folder, exist_ok=True)
-    
-    # Save uploaded PDF
-    input_path = os.path.join(working_dir, "input.pdf")
-    with open(input_path, "wb") as f:
-        f.write(uploaded_file.getbuffer())
-    
-    # Watermark settings section
-    with st.expander("⚙️ Watermark Settings", expanded=True):
-        watermark_file = st.file_uploader(
-            "Upload watermark image (PNG recommended)", 
-            type=["png", "jpg", "jpeg"],
-            help="Use a transparent PNG for best results"
-        )
-        
-        if watermark_file:
-            # Save watermark temporarily
-            watermark_path = os.path.join(working_dir, "watermark.png")
-            with open(watermark_path, "wb") as f:
-                f.write(watermark_file.getbuffer())
-            
-            # Watermark controls
-            col1, col2 = st.columns(2)
-            with col1:
-                scale = st.slider(
-                    "Watermark Size", 
-                    min_value=0.1, 
-                    max_value=2.0, 
-                    value=0.5, 
-                    step=0.1,
-                    help="Adjust the size of the watermark"
-                )
-                opacity = st.slider(
-                    "Watermark Opacity", 
-                    min_value=0.1, 
-                    max_value=1.0, 
-                    value=0.5, 
-                    step=0.1,
-                    help="How transparent the watermark should be"
-                )
-            
-            with col2:
-                x_pos = st.slider(
-                    "Horizontal Position", 
-                    min_value=0.0, 
-                    max_value=1.0, 
-                    value=0.5, 
-                    step=0.01,
-                    help="Left (0.0) to Right (1.0)"
-                )
-                y_pos = st.slider(
-                    "Vertical Position", 
-                    min_value=0.0, 
-                    max_value=1.0, 
-                    value=0.5, 
-                    step=0.01,
-                    help="Top (0.0) to Bottom (1.0)"
-                )
-            
-            position = (x_pos, y_pos)
-            
-            # Show preview
-            st.markdown("### Preview")
-            show_preview(input_path, watermark_path, scale, position, opacity)
-    
-    # Process button
-    if st.button("🚀 Process PDF", use_container_width=True):
-        with st.spinner("Processing your PDF..."):
-            try:
-                if watermark_file:
-                    compress_and_split_pdf(
-                        input_path, 
-                        split_folder, 
-                        watermark_path, 
-                        scale, 
-                        position, 
-                        opacity
-                    )
-                else:
-                    compress_and_split_pdf(input_path, split_folder)
-                
-                zip_folder(split_folder, zip_output)
-                st.success("✅ Your PDF has been processed successfully!")
-                
-                # Download button
-                with open(zip_output, "rb") as f:
-                    st.download_button(
-                        "⬇️ Download Split ZIP", 
-                        f, 
-                        file_name="Watermarked_PDFs.zip",
-                        use_container_width=True
-                    )
-                
-            except Exception as e:
-                st.error(f"❌ An error occurred: {str(e)}")
-            finally:
-                # Clean up
-                if os.path.exists(working_dir):
-                    shutil.rmtree(working_dir)
 
+uploaded_pdf = st.file_uploader("PDF File", type="pdf")
+st.markdown('<div class="step-header">🏷️ Step 2: Watermark Options (Optional)</div>', unsafe_allow_html=True)
+uploaded_wm = st.file_uploader("Watermark (transparent PNG, recommended, else JPG/JPEG)", type=["png", "jpg", "jpeg"])
+
+DEFAULT_WATERMARK_PATH = "watermark.png"
+if uploaded_wm is not None:
+    wm_img_path = "temp_uploaded_wm.png"
+    with open(wm_img_path, "wb") as f:
+        f.write(uploaded_wm.read())
+    watermark_used = wm_img_path
 else:
-    st.info("📤 Please upload a PDF file to get started.")
+    watermark_used = DEFAULT_WATERMARK_PATH
 
-# Footer
+if uploaded_pdf:
+
+    working_dir = "temp_processing"
+    split_folder = os.path.join(working_dir, "split_pages")
+    zip_output = os.path.join(working_dir, "output.zip")
+    preview_img_path = os.path.join(working_dir, "preview.png")
+    os.makedirs(working_dir, exist_ok=True)
+
+    input_pdf_path = os.path.join(working_dir, "input.pdf")
+    with open(input_pdf_path, "wb") as f:
+        f.write(uploaded_pdf.read())
+
+    doc = fitz.open(input_pdf_path)
+    page = doc[0]
+    pix = page.get_pixmap(matrix=fitz.Matrix(1.1, 1.1))
+    pix.save(preview_img_path)
+    page_rect_width = page.rect.width
+    page_rect_height = page.rect.height
+    doc.close()
+    with Image.open(preview_img_path) as preview_pil:
+        preview_width, preview_height = preview_pil.size
+    
+    st.markdown('<div class="step-header">👁️ Step 3: Preview</div>', unsafe_allow_html=True)
+    
+    st.subheader("Exam Type")
+    class_choice = st.radio(
+        "Select the class/board for automatic watermark placement defaults:",
+        options=["Class 10", "Class 12"],
+        horizontal=True,
+    )
+    if class_choice == "Class 10":
+        default_scale = 26
+        default_x = 380
+        default_y = 520
+    else:
+        default_scale = 30
+        default_x = 380
+        default_y = 700
+
+    l, c = st.columns([1.3, 2.2])
+    with l:
+        st.subheader("Watermark Placement")
+        scale = st.slider("Size (%)", min_value=0, max_value=100, step=1, value=default_scale)
+        scale_val = scale / 100.0
+        x_pos = st.number_input("X (pixels)", min_value=0, max_value=preview_width, value=default_x)
+        y_pos = st.number_input("Y (pixels)", min_value=0, max_value=preview_height, value=default_y)
+        apply_btn = st.button("✅ Apply Watermark, Compress & Split")
+
+    with c:
+        with Image.open(preview_img_path) as preview_pil, Image.open(watermark_used).convert("RGBA") as wm_img:
+            w, h = wm_img.size
+            wm_resized = wm_img.resize((int(w*scale_val), int(h*scale_val)), Image.LANCZOS)
+            preview = preview_pil.copy().convert("RGBA")
+            preview.paste(wm_resized, (int(x_pos), int(y_pos)), wm_resized)
+            st.image(preview, caption="Preview (first page with watermark)", use_container_width=True)
+
+    if apply_btn:
+        with st.spinner("Processing..."):
+            pdf_scale_x = page_rect_width / preview_width
+            pdf_scale_y = page_rect_height / preview_height
+            pdf_x = int(x_pos * pdf_scale_x)
+            pdf_y = int(y_pos * pdf_scale_y)
+            watermarked_pdf_path = apply_watermark_to_pdf(
+                input_pdf_path, watermark_used, scale=scale_val, position=(pdf_x, pdf_y), output_folder=working_dir
+            )
+            compress_and_split_pdf(watermarked_pdf_path, split_folder)
+            zip_folder(split_folder, zip_output)
+        st.success("✅ All done! Download your ZIP:")
+        with open(zip_output, "rb") as f:
+            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip")
+        shutil.rmtree(working_dir)
+        if uploaded_wm is not None and os.path.exists(wm_img_path):
+            os.remove(wm_img_path)
+else:
+    st.info("Please upload a PDF to start.")
+
 st.markdown(
     """
-    <footer>
+    <footer style='text-align: center; color: #555; font-size: 0.93rem; margin-top: 2rem;'>
         Developed by Unmesh • Powered by PyMuPDF & Streamlit
     </footer>
     """,
