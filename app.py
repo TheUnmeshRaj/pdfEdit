@@ -188,7 +188,7 @@ if uploaded_pdf:
             zip_folder(split_folder, zip_output)
         st.success("✅ All done! Download your ZIP:")
         with open(zip_output, "rb") as f:
-            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_column_width=True)
+            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_container_width=True)
         shutil.rmtree(working_dir)
         if uploaded_wm is not None and os.path.exists(wm_img_path):
             os.remove(wm_img_path)
