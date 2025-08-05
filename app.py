@@ -100,10 +100,6 @@ st.markdown(
 )
 
 st.title("PDF Compressor & Splitter with Watermark")
-st.markdown(
-    '<p class="subtitle">Upload a PDF and optionally add a watermark. Compress and split pages into individual files with a convenient ZIP download.</p>',
-    unsafe_allow_html=True,
-)
 
 # ----------- Step 1: Upload PDF -----------
 st.markdown('<div class="step-header">📤 Step 1: Upload PDF File</div>', unsafe_allow_html=True)
