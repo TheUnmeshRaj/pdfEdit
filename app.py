@@ -1,9 +1,11 @@
 import os
 import shutil
 from zipfile import ZipFile
+
 import fitz  # PyMuPDF
 import streamlit as st
 from PIL import Image
+
 
 # ====== Utility Functions ======
 def apply_watermark_to_pdf(input_path, watermark_img_path, scale, position, output_folder):
@@ -174,7 +176,7 @@ if uploaded_pdf:
             wm_resized = wm_img.resize((int(w * scale_val), int(h * scale_val)), Image.LANCZOS)
             preview = preview_pil.copy().convert("RGBA")
             preview.paste(wm_resized, (int(x_pos), int(y_pos)), wm_resized)
-            st.image(preview, caption="Preview (first page with watermark)", use_container_width=True)
+            st.image(preview, caption="Preview (first page with watermark)", use_column_width=True)
 
     if apply_btn:
         with st.spinner("Processing..."):
@@ -190,7 +192,7 @@ if uploaded_pdf:
             zip_folder(split_folder, zip_output)
         st.success("✅ All done! Download your ZIP:")
         with open(zip_output, "rb") as f:
-            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_container_width=True)
+            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_column_width=True)
         shutil.rmtree(working_dir)
         if uploaded_wm is not None and os.path.exists(wm_img_path):
             os.remove(wm_img_path)
