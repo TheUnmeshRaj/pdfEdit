@@ -50,7 +50,6 @@ st.set_page_config(
     page_icon="📄",
     initial_sidebar_state="collapsed",
 )
-
 st.markdown(
     """
     <style>
@@ -157,13 +156,10 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Step 1: Upload PDF
 st.markdown('<div class="step-header">📤 Step 1: Upload PDF File</div>', unsafe_allow_html=True)
-
-
 uploaded_pdf = st.file_uploader("PDF File", type="pdf")
 st.markdown('<div class="step-header">🏷️ Step 2: Watermark Options (Optional)</div>', unsafe_allow_html=True)
-uploaded_wm = st.file_uploader("Watermark (transparent PNG, recommended, else JPG/JPEG)", type=["png", "jpg", "jpeg"])
+uploaded_wm = st.file_uploader("Watermark", type=["png", "jpg", "jpeg"])
 
 DEFAULT_WATERMARK_PATH = "watermark.png"
 if uploaded_wm is not None:
@@ -175,7 +171,6 @@ else:
     watermark_used = DEFAULT_WATERMARK_PATH
 
 if uploaded_pdf:
-
     working_dir = "temp_processing"
     split_folder = os.path.join(working_dir, "split_pages")
     zip_output = os.path.join(working_dir, "output.zip")
@@ -228,7 +223,7 @@ if uploaded_pdf:
             wm_resized = wm_img.resize((int(w*scale_val), int(h*scale_val)), Image.LANCZOS)
             preview = preview_pil.copy().convert("RGBA")
             preview.paste(wm_resized, (int(x_pos), int(y_pos)), wm_resized)
-            st.image(preview, caption="Preview (first page with watermark)", use_container_width=True)
+            st.image(preview, caption="Preview (first page with watermark)", use_column_width=True)
 
     if apply_btn:
         with st.spinner("Processing..."):
