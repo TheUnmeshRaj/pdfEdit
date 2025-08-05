@@ -149,7 +149,6 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown("📄", unsafe_allow_html=True)
 st.title("PDF Compressor & Splitter with Watermark")
 st.markdown(
     '<p class="subtitle">Upload a PDF and optionally add a watermark. Compress and split pages into individual files with a convenient ZIP download.</p>',
