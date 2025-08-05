@@ -1,12 +1,11 @@
 import os
 import shutil
 from zipfile import ZipFile
-
 import fitz  # PyMuPDF
 import streamlit as st
 from PIL import Image
 
-
+# ====== Utility Functions ======
 def apply_watermark_to_pdf(input_path, watermark_img_path, scale, position, output_folder):
     doc = fitz.open(input_path)
     wm_img = Image.open(watermark_img_path).convert("RGBA")
@@ -16,7 +15,7 @@ def apply_watermark_to_pdf(input_path, watermark_img_path, scale, position, outp
     temp_wm_path = os.path.join(output_folder, "temp_watermark.png")
     wm_img_resized.save(temp_wm_path, "PNG")
     for page in doc:
-        img_rect = fitz.Rect(position[0], position[1], position[0]+new_width, position[1]+new_height)
+        img_rect = fitz.Rect(position[0], position[1], position[0] + new_width, position[1] + new_height)
         page.insert_image(img_rect, filename=temp_wm_path, overlay=True)
     watermarked_pdf_path = os.path.join(output_folder, "watermarked.pdf")
     doc.save(watermarked_pdf_path, garbage=4, deflate=True, clean=True)
@@ -30,7 +29,7 @@ def compress_and_split_pdf(input_path, output_folder):
     for i, page in enumerate(doc):
         new_doc = fitz.open()
         new_doc.insert_pdf(doc, from_page=i, to_page=i)
-        out_path = os.path.join(output_folder, f"{i+1}.pdf")
+        out_path = os.path.join(output_folder, f"{i + 1}.pdf")
         new_doc.save(out_path, garbage=4, deflate=True, clean=True)
         new_doc.close()
     doc.close()
@@ -42,111 +41,60 @@ def zip_folder(folder_path, zip_path):
                 file_path = os.path.join(root, file)
                 zipf.write(file_path, arcname=file)
 
-# =============== Streamlit UI & Logic ===============
-
-
+# ====== Streamlit UI & Logic ======
 st.set_page_config(
     page_title="PDF Compressor & Splitter with Watermark",
     page_icon="📄",
     initial_sidebar_state="collapsed",
+    layout="centered",
 )
+
+# ----------- Style for Cloud & Local -----------
 st.markdown(
     """
     <style>
-    /* Fonts & colors */
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
-
-    html, body, [class*="css"]  {
-        font-family: 'Inter', sans-serif;
+    body {
+        font-family: 'Inter', Arial, sans-serif;
         background-color: #f7f9fc;
-        color: #222222;
+        color: #222;
     }
-
-    /* Container */
-    .main > div {
-        max-width: 1200px !important;
-        margin: 0 auto;
-        padding: 2rem 1rem;
-        background: white;
-        box-shadow: 0 8px 30px rgb(0 0 0 / 0.1);
-        border-radius: 12px;
-    }
-
-    /* Title */
     h1 {
-        font-weight: 700 !important;
+        font-weight: 700;
         color: #0b3d91;
         text-align: center;
         margin-bottom: 0.5rem;
     }
-
-    /* Subtitle */
     .subtitle {
-        font-size: 1.1rem;
-        color: #444444;
+        font-size: 1.18rem;
+        color: #444;
         text-align: center;
         margin-bottom: 2rem;
     }
-
-    /* File uploader */
-    .stFileUploader > div > div > input {
+    .step-header {
+        background: linear-gradient(90deg, #0b3d91, #074080);
+        color: white;
+        padding: 0.7rem 1rem;
         border-radius: 8px;
-        border: 1.5px solid #0b3d91;
-        padding: 0.5rem;
+        margin: 1.5rem 0 1rem 0;
+        font-weight: 600;
+        font-size: 1.08rem;
     }
-
-    /* Download button */
-    div.stDownloadButton > button {
+    .stDownloadButton > button {
         background-color: #0b3d91;
         color: white;
         font-weight: 600;
         padding: 0.6rem 1.4rem;
         border-radius: 8px;
         border: none;
-        transition: background-color 0.3s ease;
+        transition: background 0.2s;
+        margin-top: 0.8em;
     }
-
-    div.stDownloadButton > button:hover {
+    .stDownloadButton > button:hover {
         background-color: #074080;
         cursor: pointer;
     }
-
-    /* Spinner */
-    .stSpinner {
-        margin: 1rem auto;
-        text-align: center;
-    }
-
-    /* Preview container */
-    .preview-container {
-        border: 2px dashed #0b3d91;
-        border-radius: 8px;
-        padding: 1rem;
-        text-align: center;
-        margin: 1rem 0;
-    }
-
-    /* Footer */
-    footer {
-        text-align: center;
-        font-size: 0.9rem;
-        color: #888;
-        margin-top: 3rem;
-    }
-
-    /* Step headers */
-    .step-header {
-        background: linear-gradient(90deg, #0b3d91, #074080);
-        color: white;
-        padding: 0.8rem 1.5rem;
-        border-radius: 8px;
-        margin: 1.5rem 0 1rem 0;
-        font-weight: 600;
-    }
-
     </style>
-    """,
-    unsafe_allow_html=True,
+    """, unsafe_allow_html=True
 )
 
 st.title("PDF Compressor & Splitter with Watermark")
@@ -155,8 +103,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# ----------- Step 1: Upload PDF -----------
 st.markdown('<div class="step-header">📤 Step 1: Upload PDF File</div>', unsafe_allow_html=True)
 uploaded_pdf = st.file_uploader("PDF File", type="pdf")
+
+# ----------- Step 2: Watermark -----------
 st.markdown('<div class="step-header">🏷️ Step 2: Watermark Options (Optional)</div>', unsafe_allow_html=True)
 uploaded_wm = st.file_uploader("Watermark", type=["png", "jpg", "jpeg"])
 
@@ -180,6 +131,7 @@ if uploaded_pdf:
     with open(input_pdf_path, "wb") as f:
         f.write(uploaded_pdf.read())
 
+    # ---- Preview extraction ----
     doc = fitz.open(input_pdf_path)
     page = doc[0]
     pix = page.get_pixmap(matrix=fitz.Matrix(1.1, 1.1))
@@ -189,12 +141,12 @@ if uploaded_pdf:
     doc.close()
     with Image.open(preview_img_path) as preview_pil:
         preview_width, preview_height = preview_pil.size
-    
+
+    # ----------- Step 3: Placement/Preview -----------
     st.markdown('<div class="step-header">👁️ Step 3: Preview</div>', unsafe_allow_html=True)
-    
     st.subheader("Exam Type")
     class_choice = st.radio(
-        "Select the class/board for automatic watermark placement defaults:",
+        "Select class/board for automatic watermark placement defaults:",
         options=["Class 10", "Class 12"],
         horizontal=True,
     )
@@ -219,10 +171,10 @@ if uploaded_pdf:
     with c:
         with Image.open(preview_img_path) as preview_pil, Image.open(watermark_used).convert("RGBA") as wm_img:
             w, h = wm_img.size
-            wm_resized = wm_img.resize((int(w*scale_val), int(h*scale_val)), Image.LANCZOS)
+            wm_resized = wm_img.resize((int(w * scale_val), int(h * scale_val)), Image.LANCZOS)
             preview = preview_pil.copy().convert("RGBA")
             preview.paste(wm_resized, (int(x_pos), int(y_pos)), wm_resized)
-            st.image(preview, caption="Preview (first page with watermark)", use_column_width=True)
+            st.image(preview, caption="Preview (first page with watermark)", use_container_width=True)
 
     if apply_btn:
         with st.spinner("Processing..."):
@@ -230,6 +182,7 @@ if uploaded_pdf:
             pdf_scale_y = page_rect_height / preview_height
             pdf_x = int(x_pos * pdf_scale_x)
             pdf_y = int(y_pos * pdf_scale_y)
+            # Watermark, compress/split, package
             watermarked_pdf_path = apply_watermark_to_pdf(
                 input_pdf_path, watermark_used, scale=scale_val, position=(pdf_x, pdf_y), output_folder=working_dir
             )
@@ -237,18 +190,16 @@ if uploaded_pdf:
             zip_folder(split_folder, zip_output)
         st.success("✅ All done! Download your ZIP:")
         with open(zip_output, "rb") as f:
-            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip")
+            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_container_width=True)
         shutil.rmtree(working_dir)
         if uploaded_wm is not None and os.path.exists(wm_img_path):
             os.remove(wm_img_path)
 else:
     st.info("Please upload a PDF to start.")
 
-st.markdown(
-    """
+st.markdown("""
     <footer style='text-align: center; color: #555; font-size: 0.93rem; margin-top: 2rem;'>
         Developed by Unmesh • Powered by PyMuPDF & Streamlit
     </footer>
-    """,
-    unsafe_allow_html=True,
+    """, unsafe_allow_html=True,
 )
