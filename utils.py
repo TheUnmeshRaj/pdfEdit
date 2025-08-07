@@ -30,7 +30,7 @@ def apply_watermark(input_path, watermark_img_path, scale, position, output_fold
     return output_pdf
 
 def compress_pdf(input_pdf_path, output_folder):
-  convertapi.api_credentials = os.getenv("WOW")
+  convertapi.api_credentials = "Vlw2QGbmaQIBYJdjSiqrqyNQoJp3zbKa"
   os.makedirs(output_folder, exist_ok=True)
   convertapi.convert('compress', {
     'File': input_pdf_path,
