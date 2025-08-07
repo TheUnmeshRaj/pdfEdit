@@ -1,6 +1,7 @@
-streamlit==1.26.1
-pymupdf==1.22.5
-ilovepdf
-convertapi
-requests
-requests-toolbelt
+streamlit==1.40.0
+PyMuPDF==1.26.3
+requests==2.32.4
+requests-toolbelt==1.0.0
+python-dotenv==1.1.1
+convertapi==2.0.0
+pillow==11.3.0
