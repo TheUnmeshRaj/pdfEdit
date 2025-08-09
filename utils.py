@@ -34,7 +34,7 @@ def compress_pdf(input_pdf_path, output_folder):
   os.makedirs(output_folder, exist_ok=True)
   convertapi.convert('compress', {
     'File': input_pdf_path,
-    'Preset': 'ebook'
+    'Preset': 'web'
 }, from_format = 'pdf').save_files(output_folder)
 
 def split_pdf(input_pdf_path, output_folder):
