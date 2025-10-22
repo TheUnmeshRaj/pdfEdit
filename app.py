@@ -1,9 +1,15 @@
-import streamlit as st
-import fitz
 import os
-from PIL import Image
 import shutil
-from utils import compress_pdf, apply_watermark, zip_folder, split_pdf
+
+import fitz
+import streamlit as st
+from dotenv import load_dotenv
+from PIL import Image
+
+from utils import apply_watermark, compress_pdf, split_pdf, zip_folder
+
+load_dotenv()
+aPDF_key = os.getenv("aPDF_key")
 
 st.set_page_config(
     page_title="PDF Compressor & Splitter with Watermark",
@@ -135,14 +141,31 @@ if uploaded_pdf:
                 position=(pdf_x, pdf_y), output_folder=working_dir
             )
 
-            compress_pdf(watermarked_pdf_path, working_dir)
-            compressed_pdf_path = os.path.join(working_dir, "watermarked.pdf")
-            split_pdf(compressed_pdf_path, split_folder)
-            zip_folder(split_folder, zip_output)
+            # compress_pdf(
+                # input_pdf_path=watermarked_pdf_path,
+                # output_pdf_path=working_dir,
+                # quality="low",
+                # token=aPDF_key
+            # )
+            # compressed_pdf_path = os.path.join(working_dir, "watermarked.pdf")
+            # split_pdf(compressed_pdf_path, split_folder)
+            # zip_folder(split_folder, zip_output)
+            
+            # compressed_pdf_path = os.path.join(working_dir, "watermarked_compressed.pdf")
+            # success = compress_pdf(
+            #     input_pdf_path=watermarked_pdf_path,
+            #     output_pdf_path=compressed_pdf_path,
+            #     token=aPDF_key
+            # )
+            # if not success:
+            #     st.error("PDF compression failed")
+            # else:
+            #     split_pdf(compressed_pdf_path, split_folder)
+            #     zip_folder(split_folder, zip_output)
 
-        st.success("✅ All done! Download your ZIP:")
-        with open(zip_output, "rb") as f:
-            st.download_button("⬇️ Download ZIP", f, file_name="PDFs.zip", use_container_width=True)
+        st.success("✅ All done! Download your PDF:")
+        with open(watermarked_pdf_path, "rb") as f:
+            st.download_button("⬇️ Download PDF", f, file_name="PDFs.pdf", use_container_width=True)
 
         shutil.rmtree(working_dir)
         if uploaded_wm and os.path.exists(wm_img_path):
